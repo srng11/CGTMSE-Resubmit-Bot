@@ -1,10 +1,12 @@
-CGTMSE Resubmit Desk  v1.7.0
+CGTMSE Resubmit Desk
 
-Needs Python 3.10-3.13. Python 3.14 often fails. Prefer 3.12 from python.org.
+Works on Python 3.14 (C:\Python314\python.exe). Do not use py -3.
 
-1. Double-click run.bat
-2. Files tab: choose Credential Master and Claims Data
-3. Optional: maker / checker fallback passwords, comma separated
-4. Build queue → Run → Start live run
-5. Stop still finishes checker for claims already sent on that MLI
-6. Output folder: output\RESUBCL-dd-mm-yyyy-HH-MM
+1. Unzip this folder
+2. Double-click run.bat
+3. Open desk
+4. Files tab: credential master + claims data
+5. Optional fallback passwords, comma separated
+6. Build queue → Run → Start live run
+
+If you still see "No Python 3.10-3.13 found", you clicked the OLD run.bat. Delete it.
