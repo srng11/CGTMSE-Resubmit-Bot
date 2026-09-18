@@ -212,7 +212,7 @@ def run_live(
     from .portal import (
         PortalError,
         ack_caution,
-        checker_process_claim,
+        checker_certify_batch,
         close_scheme_notice,
         login_with_captcha,
         logout,
@@ -306,6 +306,8 @@ def run_live(
                         on_item(claim["id"], result)
                         item["status"] = result.get("status", item.get("status"))
                         item["phase"] = result.get("phase", "")
+                        item["message"] = result.get("message", "")
+                        item["remark"] = result.get("remark", item.get("remark", ""))
                     except Exception as exc:
                         msg = str(exc)
                         if evidence:
@@ -344,8 +346,16 @@ def run_live(
                     log("info", "Maker logged out", "")
                 except Exception as exc:
                     log("warn", f"Maker logout: {exc}", "")
-                if aborted or stopped() or mode == "inspect":
+                if aborted or mode == "inspect":
                     continue
+                needs = [it for it in group if it.get("status") == "done"]
+                if not needs:
+                    persist(evidence, items, f"MLI {mli} maker only")
+                    if stopped():
+                        break
+                    continue
+                if stopped():
+                    log("warn", "Stop pressed — checker still running for this MLI", "")
 
                 try:
                     if page.is_closed():
@@ -373,44 +383,53 @@ def run_live(
                         except Exception:
                             pass
                     log("error", f"Checker login failed for MLI {mli}: {msg}", "")
-                    for item in group:
-                        if item.get("status") == "done":
-                            on_item(item["claim"]["id"], {"status": "done", "message": f"Maker forwarded. Checker login failed: {msg}"})
-                        elif item.get("status") != "error":
-                            on_item(item["claim"]["id"], {"status": "error", "message": f"Checker login failed: {msg}"})
+                    for item in needs:
+                        on_item(item["claim"]["id"], {"status": "done", "message": f"Maker forwarded. Checker login failed: {msg}"})
                     if fatal(msg):
                         aborted = True
                         break
+                    persist(evidence, items, f"MLI {mli} checker login failed")
+                    if stopped():
+                        break
                     continue
 
-                for item in group:
-                    if stopped() or aborted:
-                        break
-                    if item.get("status") != "done":
-                        continue
-                    claim = item["claim"]
-                    on_item(claim["id"], {"phase": "checker"})
-                    try:
-                        restore_named_iframe(page)
-                        result = checker_process_claim(page, item, log, evidence=evidence, full_dom=full_dom)
-                        on_item(claim["id"], result)
-                        log("ok", f"Done {claim['claimRef']}", claim["claimRef"])
-                    except Exception as exc:
-                        msg = str(exc)
-                        if evidence:
-                            try:
-                                evidence.capture_error(page, exc, "checker-failure", claim=claim["claimRef"])
-                            except Exception:
-                                pass
-                        on_item(claim["id"], {"status": "done", "phase": "checker", "message": f"Maker forwarded. Checker: {msg}"})
-                        log("error", msg, claim["claimRef"])
-                        if fatal(msg):
-                            aborted = True
-                            break
+                for item in needs:
+                    on_item(item["claim"]["id"], {"phase": "checker"})
+                try:
+                    restore_named_iframe(page)
+                    results = checker_certify_batch(page, needs, log, evidence=evidence, full_dom=full_dom)
+                    for item in needs:
+                        ref = (item["claim"].get("claimRef") or "").strip().upper()
+                        result = results.get(ref) or {
+                            "status": "done",
+                            "phase": "checker",
+                            "message": "Maker forwarded. Checker did not return a result",
+                        }
+                        on_item(item["claim"]["id"], result)
+                        item["status"] = result.get("status", "done")
+                        item["phase"] = result.get("phase", "checker")
+                        item["message"] = result.get("message", "")
+                        if result.get("phase") == "done":
+                            log("ok", f"Done {ref}", ref)
+                except Exception as exc:
+                    msg = str(exc)
+                    if evidence:
+                        try:
+                            evidence.capture_error(page, exc, "checker-failure", claim=mli)
+                        except Exception:
+                            pass
+                    log("error", f"Checker batch: {msg}", "")
+                    for item in needs:
+                        on_item(item["claim"]["id"], {"status": "done", "phase": "checker", "message": f"Maker forwarded. Checker: {msg}"})
+                    if fatal(msg):
+                        aborted = True
                 try:
                     logout(page)
                 except Exception as exc:
                     log("warn", f"Checker logout: {exc}", "")
+                persist(evidence, items, f"MLI {mli}")
+                if stopped() or aborted:
+                    break
         finally:
             if tracing and evidence:
                 try:

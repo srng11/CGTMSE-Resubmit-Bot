@@ -19,6 +19,8 @@ That file uses `C:\Python314\python.exe`. Do not use an old `run.bat` that says 
 
 `output\RESUBCL-dd-mm-yyyy-HH-MM\`
 
+Checker ticks **all** ACCEPT boxes on the list, then clicks the Save **picture** (not the page link). RESULT only says Complete if the portal confirms. If maker already forwarded a claim, checker still tries to certify it. Stop still finishes checker for the current MLI.
+
 ## GitHub Actions
 
 Every push to `main` compiles the Python files and uploads **CGTMSE_Resubmit_Bot.zip**.

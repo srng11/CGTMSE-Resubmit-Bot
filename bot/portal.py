@@ -351,7 +351,12 @@ def _wait_claim_form(page, claim: dict, log: LogFn, ref: str) -> dict:
         if "no live account" in low or "have been closed" in low:
             return {"ok": False, "message": "No live account / loan closed", "text": last[:800]}
         if "can not be updated" in low or "cannot be updated" in low:
-            return {"ok": False, "message": "Claim cannot be updated (already forwarded or locked)", "text": last[:800]}
+            return {
+                "ok": False,
+                "checker": True,
+                "message": "Already forwarded / locked — checker will verify",
+                "text": last[:800],
+            }
         try:
             if _iframe(page).locator("#stateCode").first.is_visible(timeout=200):
                 return {"ok": True, "text": last[:800]}
@@ -506,6 +511,13 @@ def _maker_process_claim(page, item: dict, mode: str, log: LogFn, evidence=None,
     _snap(evidence, page, "04-claim-open", ref, log, True)
     if not opened["ok"]:
         log("warn", opened["message"], ref)
+        if opened.get("checker"):
+            return {
+                "status": "done",
+                "phase": "checker",
+                "remark": opened["message"],
+                "message": opened["message"],
+            }
         return {"status": "error", "phase": "maker", "remark": opened["message"], "message": opened["message"]}
 
     log("ok", f"Opened {ref}", ref)
@@ -539,10 +551,24 @@ def _maker_process_claim(page, item: dict, mode: str, log: LogFn, evidence=None,
         body = _iframe_text(page)
         raise PortalError(f"Accept did not appear after Submit. Iframe: {body[:400] or exc}") from exc
     accept.click(timeout=8000)
-    page.wait_for_timeout(200)
+    page.wait_for_timeout(400)
     restore_named_iframe(page)
-    log("ok", "Forwarded to CGTMSE", ref)
+    body = _iframe_text(page)
     _snap(evidence, page, "07-maker-accepted", ref, log, True)
+    low = (body or "").lower()
+    if "already exist" in low:
+        log("warn", "Term loan already on file — checker will verify", ref)
+        return {
+            "status": "done",
+            "phase": "checker",
+            "remark": remark,
+            "message": "Term loan already on file — checker will verify",
+        }
+    if "please correct" in low and "forwarded" not in low:
+        msg = (body or "Maker submit error")[:240].strip()
+        log("error", msg, ref)
+        return {"status": "error", "phase": "maker", "remark": remark, "message": msg}
+    log("ok", "Forwarded to CGTMSE", ref)
     return {"status": "done", "phase": "checker", "remark": remark, "message": "Maker forwarded"}
 
 
@@ -562,66 +588,194 @@ def _arm_dialogs(page) -> None:
         pass
 
 
-def checker_process_claim(page, item: dict, log: LogFn, evidence=None, full_dom: bool = False) -> dict:
-    claim = item["claim"]
-    ref = claim["claimRef"]
+def _open_checker_list(page, log: LogFn, ref: str) -> None:
     restore_named_iframe(page)
-    _arm_dialogs(page)
-
-    listed = False
+    open_claims_menu(page, "Submission of claim", "", log, ref)
+    _goto_iframe(page, CHECKER_LIST)
     try:
-        listed = _iframe(page).locator(f"input[name='duCertifyDecisionYes({ref})']").count() > 0
+        _iframe(page).locator("input[name^='duCertifyDecisionYes']").first.wait_for(state="visible", timeout=15000)
     except Exception:
-        listed = False
-    if not listed:
-        open_claims_menu(page, "Submission of claim", "", log, ref)
-        _goto_iframe(page, CHECKER_LIST)
-        try:
-            _iframe(page).locator("input[name^='duCertifyDecisionYes']").first.wait_for(state="visible", timeout=8000)
-        except Exception:
-            pass
+        pass
+    page.wait_for_timeout(800)
+    restore_named_iframe(page)
 
-    radio = _iframe(page).locator(f"input[name='duCertifyDecisionYes({ref})'][value='Y']")
-    try:
-        if radio.count() == 0:
-            return {
-                "status": "done",
-                "phase": "checker",
-                "remark": item.get("remark") or "",
-                "message": "Maker forwarded. Not on checker list yet — certify by hand if needed",
-            }
-        radio.first.check(timeout=5000)
-        log("ok", f"ACCEPT ticked for {ref}", ref)
-    except Exception as exc:
-        return {
-            "status": "done",
-            "phase": "checker",
-            "remark": item.get("remark") or "",
-            "message": f"Maker forwarded. Checker ACCEPT failed: {exc}",
-        }
 
-    page.wait_for_timeout(400)
+def _tick_accept(page, ref: str) -> bool:
     frame = _iframe(page)
-    saved = False
-    for sel in (
-        "a[href*='displayClaimProcessingSubmitDUDetails']",
-        "img[alt='Save']",
-        "img[src*='Submit.gif']",
-    ):
+    sels = (
+        f"input[name='duCertifyDecisionYes({ref})'][value='Y']",
+        f"input[name='duCertifyDecisionYes({ref})']",
+        f"input[value='Y'][name*='{ref}']",
+    )
+    for sel in sels:
+        loc = frame.locator(sel)
         try:
-            frame.locator(sel).first.click(timeout=4000)
-            saved = True
-            break
+            if loc.count():
+                loc.first.click(force=True, timeout=5000)
+                try:
+                    loc.first.check(force=True, timeout=2000)
+                except Exception:
+                    pass
+                return True
         except Exception:
             continue
-    if not saved:
-        return {
+    try:
+        return bool(
+            page.evaluate(
+                """(ref) => {
+                    const f = document.getElementById('contentFrame');
+                    const d = f && (f.contentDocument || f.contentWindow.document);
+                    if (!d) return false;
+                    const nodes = [...d.querySelectorAll('input[type=radio], input[type=checkbox]')];
+                    const el = nodes.find(n => (n.name || '').includes(ref) && String(n.value || 'Y') === 'Y')
+                             || nodes.find(n => (n.name || '').includes(ref));
+                    if (!el) return false;
+                    el.disabled = false;
+                    el.checked = true;
+                    el.click();
+                    el.dispatchEvent(new Event('click', { bubbles: true }));
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                    return true;
+                }""",
+                ref,
+            )
+        )
+    except Exception:
+        return False
+
+
+def _click_checker_save(page) -> str:
+    """Click the Save picture / javascript submit. Never follow the Details.do href."""
+    frame = _iframe(page)
+    for sel in (
+        "img[alt='Save']",
+        "img[src*='Submit.gif']",
+        "a[href*='javascript'][href*='submitForm']",
+    ):
+        try:
+            loc = frame.locator(sel)
+            if loc.count():
+                loc.first.click(timeout=4000)
+                return sel
+        except Exception:
+            continue
+    try:
+        return (
+            page.evaluate(
+                """() => {
+                    const f = document.getElementById('contentFrame');
+                    const d = f && (f.contentDocument || f.contentWindow.document);
+                    if (!d) return 'no-doc';
+                    const img = d.querySelector("img[alt='Save']") || d.querySelector("img[src*='Submit.gif']");
+                    if (img) { (img.closest('a') || img).click(); return 'js-img'; }
+                    const w = f.contentWindow;
+                    if (w && typeof w.submitForm === 'function') {
+                        try { w.submitForm('displayClaimProcessingSubmitDUDetails'); return 'submitForm'; }
+                        catch (e) { return 'submitForm-fail'; }
+                    }
+                    return 'no-save';
+                }"""
+            )
+            or "no-save"
+        )
+    except Exception as exc:
+        return f"save-exc:{exc}"
+
+
+def _checker_error_ok(page) -> None:
+    frame = _iframe(page)
+    try:
+        frame.locator("img[src*='OK.gif'], img[alt='OK']").first.click(timeout=3000)
+        page.wait_for_timeout(800)
+        return
+    except Exception:
+        pass
+    _goto_iframe(page, CHECKER_LIST)
+    page.wait_for_timeout(800)
+
+
+def _classify_checker_page(text: str) -> str:
+    low = (text or "").lower()
+    if "select atleast one" in low or "select at least one" in low or "accepet or reject" in low:
+        return "no_tick"
+    if "approved" in low or "has been certified" in low or "successfully" in low:
+        return "ok"
+    return "other"
+
+
+def checker_certify_batch(page, items: list[dict], log: LogFn, evidence=None, full_dom: bool = False) -> dict[str, dict]:
+    """Tick every listed claim at once, Save once. Returns claimRef -> result."""
+    out: dict[str, dict] = {}
+    if not items:
+        return out
+    refs = [(item["claim"].get("claimRef") or "").strip().upper() for item in items]
+    ref0 = refs[0]
+    restore_named_iframe(page)
+    _arm_dialogs(page)
+    _open_checker_list(page, log, ref0)
+    _snap(evidence, page, "09-checker-list", ref0, log, True)
+
+    ticked: list[str] = []
+    for ref in refs:
+        if _tick_accept(page, ref):
+            ticked.append(ref)
+            log("ok", f"ACCEPT ticked for {ref}", ref)
+        else:
+            log("warn", f"{ref} not on checker list", ref)
+            out[ref] = {
+                "status": "done",
+                "phase": "checker",
+                "message": "Maker forwarded. Not on checker list yet — certify by hand if needed",
+            }
+    if not ticked:
+        return out
+
+    page.wait_for_timeout(800)
+    _snap(evidence, page, "09b-checker-ticked", ref0, log, True)
+    how = _click_checker_save(page)
+    log("info", f"Checker Save control: {how}", ref0)
+    page.wait_for_timeout(1500)
+    restore_named_iframe(page)
+    text = _iframe_text(page)
+    kind = _classify_checker_page(text)
+    _snap(evidence, page, "10-checker-saved", ref0, log, True)
+
+    if kind == "no_tick":
+        log("warn", "Portal: select at least one — retry after OK", ref0)
+        _checker_error_ok(page)
+        _open_checker_list(page, log, ref0)
+        for ref in ticked:
+            _tick_accept(page, ref)
+        page.wait_for_timeout(800)
+        how = _click_checker_save(page)
+        log("info", f"Checker Save retry: {how}", ref0)
+        page.wait_for_timeout(1500)
+        restore_named_iframe(page)
+        text = _iframe_text(page)
+        kind = _classify_checker_page(text)
+        _snap(evidence, page, "10-checker-saved-retry", ref0, log, True)
+
+    if kind == "ok":
+        msg = "Complete — maker forwarded and checker certified"
+        log("ok", "Checker certified the list", ref0)
+        for ref in ticked:
+            out[ref] = {"status": "done", "phase": "done", "message": msg}
+        return out
+
+    msg = f"Maker forwarded. Checker did not certify: {(text or '(blank page)')[:200].strip()}"
+    log("error", msg, ref0)
+    for ref in ticked:
+        out[ref] = {"status": "done", "phase": "checker", "message": msg}
+    return out
+
+
+def checker_process_claim(page, item: dict, log: LogFn, evidence=None, full_dom: bool = False) -> dict:
+    ref = (item["claim"].get("claimRef") or "").strip().upper()
+    return checker_certify_batch(page, [item], log, evidence, full_dom).get(
+        ref,
+        {
             "status": "done",
             "phase": "checker",
-            "remark": item.get("remark") or "",
-            "message": "Maker forwarded. Checker Save picture not clicked",
-        }
-    page.wait_for_timeout(400)
-    log("ok", "Checker saved", ref)
-    _snap(evidence, page, "10-checker-saved", ref, log, True)
-    return {"status": "done", "phase": "done", "message": "Complete — maker forwarded and checker saved"}
+            "message": "Maker forwarded. Checker did not return a result",
+        },
+    )
