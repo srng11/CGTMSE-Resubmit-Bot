@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Compile Python
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Syntax check
+        run: python -m compileall -q -f bot dashboard.py launcher.py
+
+      - name: Import modules that do not need Playwright
+        run: |
+          python -c "from bot.parse import parse_claims, parse_credentials, split_passwords"
+          python -c "from bot.match import build_queue"
+          python -c "from bot.report import export_csv"
+          python -c "from bot.sop import PORTAL_URL, SOP_STEPS"
+          python -c "from bot import __version__; print('version', __version__)"
+
+  pack:
+    name: Zip desk
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build zip
+        run: |
+          python3 - << 'PY'
+          import zipfile
+          from pathlib import Path
+          root = Path(".")
+          skip = {".git", ".github", "__pycache__", ".venv", "evidence", "output", "dist", "build"}
+          out = Path("CGTMSE_Resubmit_Bot.zip")
+          with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+              for p in sorted(root.rglob("*")):
+                  if not p.is_file():
+                      continue
+                  if any(part in skip for part in p.parts):
+                      continue
+                  if p.suffix == ".pyc" or p.name == "CGTMSE_Resubmit_Bot.zip":
+                      continue
+                  z.write(p, Path("CGTMSE_Resubmit_Bot") / p.relative_to(root))
+          print("wrote", out, "bytes", out.stat().st_size)
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CGTMSE_Resubmit_Bot
+          path: CGTMSE_Resubmit_Bot.zip
+          if-no-files-found: error
+          retention-days: 14

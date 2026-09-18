@@ -18,3 +18,13 @@ That file uses `C:\Python314\python.exe`. Do not use an old `run.bat` that says 
 ## Output
 
 `output\RESUBCL-dd-mm-yyyy-HH-MM\`
+
+## GitHub Actions
+
+Every push to `main` compiles the Python files and uploads **CGTMSE_Resubmit_Bot.zip**.
+
+1. Open the **Actions** tab
+2. Open the latest **CI** run
+3. Download the **CGTMSE_Resubmit_Bot** artifact
+
+You can also click **Run workflow** on that CI workflow.
