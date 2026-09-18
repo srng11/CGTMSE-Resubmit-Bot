@@ -23,11 +23,15 @@ jobs:
       - name: Syntax check
         run: python -m compileall -q -f bot dashboard.py launcher.py
 
+      - name: Offline tests
+        run: python -m bot.test_desk
+
       - name: Import modules that do not need Playwright
         run: |
           python -c "from bot.parse import parse_claims, parse_credentials, split_passwords"
           python -c "from bot.match import build_queue"
           python -c "from bot.report import export_csv"
+          python -c "from bot.status import classify_checker_text"
           python -c "from bot.sop import PORTAL_URL, SOP_STEPS"
           python -c "from bot import __version__; print('version', __version__)"
 
