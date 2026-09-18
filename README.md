@@ -6,7 +6,7 @@ Windows desk for returned first-instalment claims on https://inter.cgtmse.in
 
 Double-click **START_DESK.bat**
 
-That file uses `C:\Python314\python.exe`. Do not use an old `run.bat` that says Python 3.10–3.13 is required.
+That file uses `C:\\Python314\\python.exe`. Do not use an old `run.bat` that says Python 3.10–3.13 is required.
 
 ## First run
 
@@ -17,16 +17,12 @@ That file uses `C:\Python314\python.exe`. Do not use an old `run.bat` that says 
 
 ## Output
 
-`output\RESUBCL-dd-mm-yyyy-HH-MM\`
+`output\\RESUBCL-dd-mm-yyyy-HH-MM\\`
 
-Checker ticks **all** ACCEPT boxes on the list, then clicks the Save **picture** (not the page link). RESULT only says Complete if the portal confirms. If maker already forwarded a claim, checker still tries to certify it. Stop still finishes checker for the current MLI.
+RESULT words: **certified** (checker confirmed), **forwarded** (maker sent, checker not done), **blocked** (URN / closed / missing legal or state), **error**, **queued**.
+
+Checker ticks ACCEPT on every list page, then the Save **picture**. It does not write certified unless the portal says so. Empty State or Legal in Excel is not guessed. Stop still finishes checker for the current MLI.
 
 ## GitHub Actions
 
 Every push to `main` compiles the Python files and uploads **CGTMSE_Resubmit_Bot.zip**.
-
-1. Open the **Actions** tab
-2. Open the latest **CI** run
-3. Download the **CGTMSE_Resubmit_Bot** artifact
-
-You can also click **Run workflow** on that CI workflow.

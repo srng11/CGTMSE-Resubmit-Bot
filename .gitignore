@@ -1,7 +1,12 @@
 .venv/
 evidence/
+output/
 dist/
 build/
 __pycache__/
 *.pyc
 *.spec
+*.xlsx
+*.xlsm
+CGTMSE_Credential_Master.xlsx
+RESUBMISSION OF CLAIMS DATA.xlsx
