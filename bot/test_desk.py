@@ -2,8 +2,19 @@
 
 from __future__ import annotations
 
-from bot.status import BLOCKED, CERTIFIED, FORWARDED, classify_checker_text, summary_counts
+from bot.status import BLOCKED, CERTIFIED, FORWARDED, classify_checker_text, classify_login_text, summary_counts
+from bot import __version__
 from bot.parse import merge_password_chain, split_passwords
+
+
+def test_version_is_174():
+    assert __version__ == "1.7.4"
+
+
+def test_login_invalid_password_page():
+    assert classify_login_text("Error Message", "Invalid Password") == "bad"
+    assert classify_login_text("CGTMSE", "Log Out") == "ok"
+    assert classify_login_text("CGTMSE", "Please enter your Member Id") == "other"
 
 
 def test_split_passwords():

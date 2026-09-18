@@ -2,16 +2,15 @@
 
 QUEUED = "queued"
 RUNNING = "running"
-FORWARDED = "forwarded"   # maker sent, or already on file; checker still needed
-CERTIFIED = "certified"   # portal confirmed checker D/U
-BLOCKED = "blocked"       # portal / file will not allow submit
+FORWARDED = "forwarded"
+CERTIFIED = "certified"
+BLOCKED = "blocked"
 ERROR = "error"
 
 CHECKER_OK = (
     "has been certified",
     "certified successfully",
     "claim(s) have been approved",
-    "approved claims",
     "successfully certified",
     "d&u has been",
     "d and u has been",
@@ -23,6 +22,15 @@ CHECKER_NO_TICK = (
     "accepet or reject",
     "accept or reject",
 )
+
+
+def classify_login_text(title: str, body: str) -> str:
+    blob = f"{title or ''}\n{body or ''}".lower()
+    if "invalid password" in blob or (title or "").strip().lower() == "error message":
+        return "bad"
+    if "log out" in blob:
+        return "ok"
+    return "other"
 
 
 def classify_checker_text(text: str) -> str:
