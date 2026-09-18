@@ -1,7 +1,8 @@
 .venv/
-__pycache__/
+evidence/
+output/
 dist/
 build/
-output/
-*.spec
+__pycache__/
 *.pyc
+*.spec

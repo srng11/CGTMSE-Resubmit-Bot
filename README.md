@@ -1,31 +1,20 @@
-# CGTMSE Resubmit Desk v1.7.0
+# CGTMSE Resubmit Desk
 
-Windows desk that resubmits returned first-instalment claims on the CGTMSE portal (maker, then checker).
+Windows desk for returned first-instalment claims on https://inter.cgtmse.in
 
-## Run
+## Start
 
-1. Double-click `run.bat`
-2. Files tab: Credential Master + Claims Data
-3. Optional maker / checker fallback passwords, comma separated
-4. Build queue → Run → Start live run
-5. Output: `output\RESUBCL-dd-mm-yyyy-HH-MM`
+Double-click **START_DESK.bat** or **run.bat**.
 
-Stop still finishes checker for claims already sent on that MLI.
+Uses `C:\\Python314\\python.exe`. Do not use an old run.bat that says Python 3.10–3.13 is required.
 
-## v1.7.0
+## First run
 
-- RESULT follows the portal page, not the click
-- Maker "forwarded" only if the page says forwarded (or already sent)
-- Checker "certified" only if Approved Claims is shown
-- Already-sent claims still go to checker
-- Error screenshot is taken on the red page, before going back to search
-- Checker list is photographed before ACCEPT
-- No video recording
-- Chrome console noise stays out of `log.txt`
+1. Code → Download ZIP, unzip to a new folder
+2. Double-click `START_DESK.bat`
+3. Files tab: credential master + claims workbook
+4. Build queue → Start live run
 
-## Files
+## Output
 
-- `run.bat` — create venv, install openpyxl + playwright, start desk
-- `launcher.py` / `dashboard.py` — office-colour wizard
-- `bot/` — portal, engine, evidence, Excel parse
-- `build_exe.bat` — optional PyInstaller (not required)
+`output\\RESUBCL-dd-mm-yyyy-HH-MM\\`
