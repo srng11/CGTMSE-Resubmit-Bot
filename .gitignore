@@ -1,6 +1,5 @@
 .venv/
 evidence/
-output/
 dist/
 build/
 __pycache__/

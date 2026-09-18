@@ -2,19 +2,19 @@
 
 Windows desk for returned first-instalment claims on https://inter.cgtmse.in
 
-## Start
+## Start on this PC
 
-Double-click **START_DESK.bat** or **run.bat**.
+Double-click **START_DESK.bat**
 
-Uses `C:\\Python314\\python.exe`. Do not use an old run.bat that says Python 3.10–3.13 is required.
+That file uses `C:\Python314\python.exe`. Do not use an old `run.bat` that says Python 3.10–3.13 is required.
 
 ## First run
 
-1. Code → Download ZIP, unzip to a new folder
+1. Unzip to a new folder (Desktop is fine)
 2. Double-click `START_DESK.bat`
 3. Files tab: credential master + claims workbook
 4. Build queue → Start live run
 
 ## Output
 
-`output\\RESUBCL-dd-mm-yyyy-HH-MM\\`
+`output\RESUBCL-dd-mm-yyyy-HH-MM\`

@@ -1,4 +1,6 @@
 PORTAL_URL = "https://inter.cgtmse.in/jsp/Home.jsp"
+RETURNED_FORM = "displayClaimDetailsInput.do?method=displayClaimDetailsInput"
+CHECKER_LIST = "displayClaimProcessingSubmitDU.do?method=displayClaimProcessingSubmitDU"
 
 SOP_STEPS = [
     {"id": "open", "role": "maker", "title": "Open portal, close notice", "detail": "https://inter.cgtmse.in — Close the CGS-1 scheme banner."},
@@ -11,9 +13,6 @@ SOP_STEPS = [
     {"id": "submit", "role": "maker", "title": "Submit and Accept D/U", "detail": "Submit the form, Accept the Declaration & Undertaking."},
     {"id": "logout-maker", "role": "handover", "title": "Maker logs out", "detail": "Session closed. Checker signs in with a different user ID."},
     {"id": "login-checker", "role": "checker", "title": "Sign in as Checker", "detail": "Same Member ID, Checker user ID, password, T&Cs, Sign In, caution."},
-    {"id": "accept", "role": "checker", "title": "ACCEPT and Save", "detail": "Submission of claim → ACCEPT on that claim → confirm alert → Save picture."},
+    {"id": "accept", "role": "checker", "title": "ACCEPT and Save", "detail": "Submission of claim → ACCEPT → confirm alert → Save."},
     {"id": "logout-checker", "role": "checker", "title": "Checker logs out", "detail": "Confirm the claim under Approved Claims, then Log Out."},
 ]
-
-RETURNED_FORM = "displayClaimDetailsInput.do?method=displayClaimDetailsInput"
-CHECKER_LIST = "displayClaimProcessingSubmitDU.do?method=displayClaimProcessingSubmitDU"

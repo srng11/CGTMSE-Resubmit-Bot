@@ -13,6 +13,15 @@ if exist "C:\Python314\python.exe" set "PYEXE=C:\Python314\python.exe"
 if not defined PYEXE if exist "C:\Python313\python.exe" set "PYEXE=C:\Python313\python.exe"
 if not defined PYEXE if exist "C:\Python312\python.exe" set "PYEXE=C:\Python312\python.exe"
 if not defined PYEXE if exist "%LocalAppData%\Programs\Python\Python314\python.exe" set "PYEXE=%LocalAppData%\Programs\Python\Python314\python.exe"
+if not defined PYEXE if exist "%LocalAppData%\Programs\Python\Python313\python.exe" set "PYEXE=%LocalAppData%\Programs\Python\Python313\python.exe"
+if not defined PYEXE if exist "%LocalAppData%\Programs\Python\Python312\python.exe" set "PYEXE=%LocalAppData%\Programs\Python\Python312\python.exe"
+
+if not defined PYEXE (
+  for /f "delims=" %%P in ('where python 2^>nul') do (
+    echo %%P | findstr /i "pythoncore" >nul
+    if errorlevel 1 if not defined PYEXE set "PYEXE=%%P"
+  )
+)
 
 if not defined PYEXE (
   echo Python not found. Need C:\Python314\python.exe
@@ -21,6 +30,7 @@ if not defined PYEXE (
 )
 
 echo Creating .venv with %PYEXE%
+"%PYEXE%" -c "import sys; print(sys.version)"
 "%PYEXE%" -m venv .venv
 if errorlevel 1 (
   echo Could not create .venv
@@ -33,6 +43,7 @@ call ".venv\Scripts\activate.bat"
 python -c "import sys; print('Using', sys.version)"
 python -c "import openpyxl, playwright" 2>nul
 if errorlevel 1 (
+  echo Installing openpyxl and Playwright...
   python -m pip install --upgrade pip
   python -m pip install "openpyxl>=3.1.5" "playwright>=1.49.0"
   if errorlevel 1 (

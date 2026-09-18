@@ -94,6 +94,7 @@ def load_table(path: str | Path) -> list[dict[str, str]]:
 
 
 def split_passwords(raw: str) -> list[str]:
+    """Comma-separated list from the desk fallback fields (not from Excel)."""
     seen: list[str] = []
     for part in cell(raw).split(","):
         pwd = part.strip()
@@ -103,6 +104,7 @@ def split_passwords(raw: str) -> list[str]:
 
 
 def merge_password_chain(excel_password: str, fallbacks: list[str] | None) -> list[str]:
+    """Excel password first; user fallbacks only if that one is rejected."""
     chain: list[str] = []
     primary = cell(excel_password)
     if primary:
@@ -169,3 +171,19 @@ def parse_claims(path: str | Path) -> list[dict[str, str]]:
             }
         )
     return out
+
+
+SAMPLE_CLAIM = {
+    "id": "sample:CL26UP256450401",
+    "mliId": "500310000",
+    "mliCanonical": canonical_mli("500310000"),
+    "claimRef": "CL26UP256450401",
+    "state": "",
+    "legalWaiver": "",
+    "legalForum": "",
+    "attachment": "",
+    "comment": "",
+    "urn": "",
+    "sample": "1",
+    "sourceRow": "0",
+}
